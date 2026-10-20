@@ -43,3 +43,28 @@ app.include_router(tasks.router, prefix="/api")
 @app.get("/api/health", tags=["health"])
 def health():
     return {"status": "ok"}
+
+# ---------------------------------------------------------------------------
+# Serve the built website (only when it exists, i.e. inside the combined Docker image).
+# ---------------------------------------------------------------------------
+from pathlib import Path  # noqa: E402
+
+from fastapi import HTTPException  # noqa: E402
+from fastapi.responses import FileResponse  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+
+STATIC_DIR = (Path(__file__).resolve().parent.parent / "static").resolve()
+
+if STATIC_DIR.is_dir():
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def serve_website(full_path: str):
+        # Unknown API addresses stay real 404s instead of showing the website.
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+        candidate = (STATIC_DIR / full_path).resolve()
+        if full_path and candidate.is_file() and STATIC_DIR in candidate.parents:
+            return FileResponse(candidate)
+        # Any other address is a page of the React app, which handles its own routing.
+        return FileResponse(STATIC_DIR / "index.html")
