@@ -1,134 +1,127 @@
-# Docket: project management and team collaboration app
+# Docket
 
-A full-stack app where teams create projects, invite teammates, and move tasks across a shared board.
+A full-stack project management app for small teams. Create projects, invite teammates by email, and move tasks across a shared board.
 
-- **Frontend:** React + TypeScript (Vite), React Router
-- **Backend:** Python, FastAPI, SQLAlchemy
-- **Database:** PostgreSQL
-- **Extras:** JWT login, automated tests, Docker, GitHub Actions
+**Live demo:** https://YOUR-APP-NAME.onrender.com
 
-> **Heads-up:** this code was written in an environment that could not download packages, so the
-> tests and the build have **not been run yet**. Run the steps below and, if anything fails, paste the
-> error. Expect to fix a small thing or two on the first run.
+> The demo runs on a free server that sleeps when nobody is using it, so the first load can take up to a minute. Anyone can sign up, so please use made-up details and never a real password.
 
-## Features
+![Docket project board with To do, In progress and Done columns](docs/screenshot.png)
 
-- Sign up and sign in (passwords are hashed with bcrypt; login uses a JWT token)
-- Dashboard with a folder-style card for each project and a progress bar
-- Project board with three columns: To do, In progress, Done
-- Create, edit, delete tasks; change status from the card; priority, due date, assignee
-- Teams: the project owner adds people by email (they must have signed up first)
-- Search tasks, "Only my tasks" filter
-- Loading states, error messages with a retry button, empty states
-- People can only see projects they belong to
+## What it does
 
-## Run it with Docker (easiest)
+- Sign up and sign in. Passwords are hashed, and login uses a signed token (JWT).
+- A dashboard with one card per project and a progress bar showing how many tasks are done.
+- A project board with three columns: To do, In progress and Done.
+- Create, edit and delete tasks. Each task has a priority, an optional due date and an optional assignee.
+- Change a task's status straight from its card. The card moves immediately and goes back if the server refuses.
+- Teams: the project owner adds people by email (they must already have an account) and can remove them.
+- Search tasks, or show only the tasks assigned to you.
+- Loading states, clear error messages with a retry button, and empty states.
+- Access control: you can only open projects you belong to.
 
-Install Docker Desktop, then from this folder:
+## Built with
+
+| Part | Technology |
+| --- | --- |
+| Frontend | React, TypeScript, Vite, React Router, plain CSS |
+| Backend | Python, FastAPI, SQLAlchemy, Pydantic |
+| Database | PostgreSQL |
+| Auth | bcrypt (password hashing), PyJWT (login tokens) |
+| Tests | pytest (backend), Vitest (frontend helpers) |
+| Tooling | Docker, Docker Compose, GitHub Actions |
+
+## Run it on your own computer
+
+You need [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+
+1. Copy `.env.example` to a new file named `.env`.
+2. Put your own values in it. To make a random secret key, run:
+
+   ```bash
+   python -c "import secrets; print(secrets.token_hex(32))"
+   ```
+
+   Use one value for `SECRET_KEY` and a different one for `POSTGRES_PASSWORD`. The `.env` file is ignored by Git, so it is never uploaded.
+3. Start everything:
+
+   ```bash
+   docker compose up --build
+   ```
+
+4. Open http://localhost:8080. The API documentation is at http://localhost:8000/api/docs.
+
+Stop it with `Ctrl+C`. To also erase the stored data, run `docker compose down -v`.
+
+## Run the tests
 
 ```bash
-docker compose up --build
-```
-
-- App: http://localhost:8080
-- API docs (try every endpoint in the browser): http://localhost:8000/api/docs
-
-Stop with `Ctrl+C`. Your data is kept in a Docker volume (`docker compose down -v` erases it).
-
-## Run it without Docker (Windows PowerShell)
-
-You need Python 3.11+, Node 20+, and PostgreSQL. Create an empty database called `project_manager`
-(for example with pgAdmin, or `createdb project_manager`).
-
-**Terminal 1: backend**
-
-```powershell
 cd backend
-python -m venv .venv
-.venv\Scripts\Activate.ps1
 pip install -r requirements-dev.txt
-$env:DATABASE_URL = "postgresql+psycopg2://postgres:YOUR_PASSWORD@localhost:5432/project_manager"
-uvicorn app.main:app --reload
+pytest
 ```
 
-**Terminal 2: frontend**
-
-```powershell
+```bash
 cd frontend
 npm install
-npm run dev
+npm test
+npm run build   # also type-checks the code
 ```
 
-Open http://localhost:5173. The dev server forwards `/api` requests to the backend on port 8000.
+The backend tests use a temporary SQLite file, so they do not need PostgreSQL. GitHub Actions runs both test suites and a build on every push.
 
-## Tests
+## API overview
 
-```powershell
-cd backend
-pytest            # 22 API tests (uses a temporary SQLite file, no PostgreSQL needed)
-
-cd ../frontend
-npm test          # unit tests for the helper functions
-npm run build     # also type-checks everything
-```
-
-GitHub Actions (`.github/workflows/ci.yml`) runs all of this on every push and pull request.
-
-## API at a glance
-
-All routes start with `/api`. Everything except register/login needs the header
-`Authorization: Bearer <token>`.
+Every route starts with `/api`. Apart from register and login, requests need the header `Authorization: Bearer <token>`.
 
 | Method | Path | What it does |
 | --- | --- | --- |
-| POST | `/auth/register` | Create an account, returns a token |
-| POST | `/auth/login` | Sign in, returns a token |
-| GET | `/auth/me` | Who am I? |
-| GET / POST | `/projects` | List my projects / create one |
-| GET / PATCH / DELETE | `/projects/{id}` | Read / rename (owner) / delete (owner) |
+| POST | `/auth/register` | Create an account and get a token |
+| POST | `/auth/login` | Sign in and get a token |
+| GET | `/auth/me` | Get the signed-in user |
+| GET, POST | `/projects` | List your projects, or create one |
+| GET, PATCH, DELETE | `/projects/{id}` | Read a project, rename it (owner), delete it (owner) |
 | POST | `/projects/{id}/members` | Add a person by email (owner) |
 | DELETE | `/projects/{id}/members/{user_id}` | Remove a person (owner) |
-| GET / POST | `/projects/{id}/tasks` | List / create tasks |
-| PATCH / DELETE | `/tasks/{id}` | Edit / delete a task |
+| GET, POST | `/projects/{id}/tasks` | List or create tasks |
+| PATCH, DELETE | `/tasks/{id}` | Edit or delete a task |
 
-## Folder map
+## How the code is organised
 
 ```
 backend/
   app/
-    main.py         app setup, CORS, creates tables on start
+    main.py         app setup and CORS; creates the tables on start
     database.py     connection to PostgreSQL
-    models.py       tables: users, projects, tasks, project_members
-    schemas.py      the JSON shapes the API accepts and returns
-    security.py     password hashing + JWT tokens
-    deps.py         "who is logged in?" and "can they see this project?"
+    models.py       users, projects, tasks and project members
+    schemas.py      the JSON the API accepts and returns
+    security.py     password hashing and tokens
+    deps.py         "who is signed in?" and "may they see this project?"
     routers/        auth.py, projects.py, tasks.py
-  tests/            pytest tests
+  tests/            API tests
 frontend/
   src/
     api.ts          every call to the backend, in one place
-    auth.tsx        login state shared across the app
-    projects.tsx    project list shared by the sidebar and dashboard
-    pages/          AuthPage, DashboardPage, ProjectPage
-    components/     AppShell (sidebar), ProjectCard, TaskCard, modals, ...
-    lib/format.ts   small pure helpers (and format.test.ts)
-docker-compose.yml  database + backend + frontend together
+    auth.tsx        sign-in state shared across the app
+    projects.tsx    the project list shared by the sidebar and dashboard
+    pages/          sign-in, dashboard and project board
+    components/     sidebar, cards, task and team dialogs
+    lib/            small helper functions and their tests
+docker-compose.yml  database, backend and website together
 ```
 
-## Good things to be able to explain in an interview
+## Design decisions
 
-- Why a stranger gets **404 (not 403)** for someone else's project: it doesn't reveal which ids exist.
-- Why status changes are **optimistic** in the UI: the card moves instantly and snaps back if the server refuses.
-- How the JWT works: the server signs "this is user 5", and checks the signature on every request.
-- Why passwords are hashed and never stored or returned.
-- Why the owner is also stored as a member: one rule ("are you a member?") controls all access.
+- **Strangers get a 404, not a 403.** Asking for someone else's project says "not found", so nobody can discover which project ids exist.
+- **The owner is also stored as a member.** One rule, "are you a member?", controls all access.
+- **Status changes are optimistic.** The screen updates first and rolls back if the request fails, so the board feels instant.
+- **Secrets stay out of the code.** The signing key and database password come from environment variables, and `.env` is ignored by Git.
 
-## Known limits (honest list)
+## Limitations and next steps
 
-- Tables are created on startup. A real deployment would use migrations (Alembic).
-- The token lives in `localStorage`. That is simple, but a production app might prefer httpOnly cookies.
-- Project task counts are computed in Python per project, which is fine for small teams but would
-  become a SQL `COUNT` query at scale.
-- Set a real `SECRET_KEY` before deploying anywhere public.
-- **AWS deployment is not included.** A natural next step: push the two images to ECR, run them on
-  ECS Fargate (or App Runner), and use RDS for PostgreSQL.
+- Tables are created when the server starts. A larger app would use migrations (for example Alembic).
+- The login token is kept in `localStorage`. Cookies that JavaScript cannot read would be safer for a production app.
+- No email verification or password reset yet.
+- Tasks cannot be dragged between columns yet; status is changed with the dropdown.
+
+
