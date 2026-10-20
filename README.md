@@ -2,7 +2,7 @@
 
 A full-stack project management app for small teams. Create projects, invite teammates by email, and move tasks across a shared board.
 
-**Live demo:** https://YOUR-APP-NAME.onrender.com
+   **Live demo:** https://docket-project-manager.onrender.com
 
 > The demo runs on a free server that sleeps when nobody is using it, so the first load can take up to a minute. Anyone can sign up, so please use made-up details and never a real password.
 
