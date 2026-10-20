@@ -46,5 +46,8 @@ jobs:
     needs: [backend, frontend]
     steps:
       - uses: actions/checkout@v4
-      - name: Build images
+            - name: Build images
+        env:
+          SECRET_KEY: ci-build-only
+          POSTGRES_PASSWORD: ci-build-only
         run: docker compose build

@@ -10,7 +10,12 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 import jwt
 
-SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
+# The signing key must come from the environment. There is deliberately no default,
+# so a forgotten setting stops the app instead of leaving a publicly known key.
+SECRET_KEY = os.getenv("SECRET_KEY", "")
+if not SECRET_KEY or SECRET_KEY.startswith("put-a-") or SECRET_KEY == "dev-secret-change-me":
+    raise RuntimeError("SECRET_KEY is not set. Put a long random value in your .env file.")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 
